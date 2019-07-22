@@ -1159,6 +1159,8 @@ static void ath9k_hif_usb_firmware_cb(const struct firmware *fw, void *context)
 	struct hif_device_usb *hif_dev = context;
 	int ret;
 
+	printk(KERN_INFO "ath9k_hif_usb_firmware_cb called. \n");
+
 	if (!fw) {
 		ret = ath9k_hif_request_firmware(hif_dev, false);
 		if (!ret)
@@ -1179,7 +1181,7 @@ static void ath9k_hif_usb_firmware_cb(const struct firmware *fw, void *context)
 	hif_dev->fw_size = fw->size;
 
 	/* Proceed with initialization */
-
+	printk(KERN_INFO "ath9k_hif_usb_firmware_cb called. \n");
 	ret = ath9k_hif_usb_dev_init(hif_dev);
 	if (ret)
 		goto err_dev_init;

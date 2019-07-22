@@ -231,6 +231,60 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 			       ath9k_hw_regulatory(priv->ah));
 }
 
+static void fancy_printk(u8* buffer, u8 id, u8 len) {
+	u8 temp[400];
+	int i;
+	int counth = 0;
+	int countc = 0;
+
+ 	for(i = 0; i < len; i++) {
+		sprintf(temp + (counth * 3), "%02x ", buffer[i]);
+		counth++;
+	}
+
+ 	sprintf(temp + (counth * 3), "| ");
+
+ 	for(i = 0; i < len; i++) {
+		if((buffer[i] > '!' && buffer[i] < '~') || buffer[i] == ' ') {
+			sprintf(temp + (counth * 3) + 2 + countc, "%c", buffer[i]);
+		} else {
+			sprintf(temp + (counth * 3) + 2 + countc, "%c", '.');
+		}
+		countc++;
+	}
+	printk(KERN_ERR "firmware: %s (cmd %d)\n", temp, id);
+}
+
+	int dbg_firmware_cmd(struct ath9k_htc_priv *priv, u8 cmd_id, u32 arguments[2])
+{
+	struct dbg_cmd_request cmd;
+	struct dbg_cmd_response cmd_rsp;
+	int ret;
+
+ 	// Prepare command
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.id = cmd_id;
+	if(arguments != NULL) {
+		cmd.args[0] = cpu_to_be32(arguments[0]);
+		cmd.args[1] = cpu_to_be32(arguments[1]);
+	}
+
+ 	// Prepare response
+	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
+
+ 	do {
+		ret = ath9k_wmi_cmd(priv->wmi, WMI_DBGCMD_CMDID, (u8 *)&cmd, sizeof(cmd), (u8 *)&cmd_rsp, sizeof(cmd_rsp), HZ*2);
+		if (ret)
+			return -EINVAL;
+
+ 		if(cmd_rsp.length > 0)
+			fancy_printk(cmd_rsp.buffer, cmd_id, cmd_rsp.length);
+	} while(cmd_rsp.length != 0);
+
+ 	return 0;
+}
+
+
 static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
@@ -888,6 +942,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 			goto err_world;
 	}
 
+	dev_info(priv->dev, "ath9k_htc_init_debug called. \n");
 	error = ath9k_htc_init_debug(priv->ah);
 	if (error) {
 		ath_err(common, "Unable to create debugfs files\n");

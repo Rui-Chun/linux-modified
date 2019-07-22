@@ -324,6 +324,8 @@ static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
 	return (struct ath9k_htc_tx_ctl *) &tx_info->driver_data;
 }
 
+int dbg_firmware_cmd(struct ath9k_htc_priv *priv, u8 cmd_id, u32 arguments[2]);
+
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)

@@ -15,6 +15,12 @@
  */
 
 #include "htc.h"
+#include <linux/proc_fs.h>	/* Necessary because we use the proc fs */
+#include <linux/uaccess.h> /*user space acess*/
+
+
+#define buffer_size 100
+#define procfs_name "ath9k-htc-rate"
 
 static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
@@ -479,8 +485,62 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
 }
 
+static struct proc_dir_entry *Our_Proc_File;
+static char info[50] = "";
+struct ath9k_htc_priv *proc_ath9k_priv = NULL;
+
+
+static int
+procfile_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
+{
+   char buf[buffer_size];
+   int len = 0;
+   printk(KERN_INFO "reading profile %s",procfs_name);
+   
+   if(*ppos > 0 || count < buffer_size) return 0;
+   //printk(KERN_INFO "count = %d\n",count);
+   len += sprintf(buf, "kernel module says: %s\n", info);
+   
+   if(copy_to_user(ubuf,buf,len)) return -EFAULT;
+   else printk(KERN_INFO "copy right\n");
+   
+   *ppos = len;
+   return len;
+   
+}
+
+static int
+procfile_write(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos)
+{
+   u32 vals[2];   
+   size_t c;
+  
+   printk(KERN_INFO "writig profile %s",procfs_name);
+   if(*ppos > 0 || count > buffer_size) return -EFAULT;
+   if(copy_from_user(info,ubuf,count)) return -EFAULT;
+
+
+   vals[0] = ((int)info[0] - 48)*10 + ((int)info[1] - 48);
+   dbg_firmware_cmd(proc_ath9k_priv, DBG_CMD_SET_RATE, vals);
+   
+   c = strlen(info);
+   *ppos = c;
+   return c;
+}
+
+static struct file_operations myops = 
+{
+   .owner = THIS_MODULE,
+   .read = procfile_read,
+   .write = procfile_write,
+};
+
+
 void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
 {
+	proc_remove(Our_Proc_File);
+	printk(KERN_INFO "/proc/%s removed\n", procfs_name);
+
 	ath9k_cmn_spectral_deinit_debug(&priv->spec_priv);
 }
 
@@ -489,10 +549,23 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 
+	proc_ath9k_priv = priv;
+
+	dev_info(priv->dev, "real ath9k_htc_init_debug called. \n");
+	Our_Proc_File = proc_create(procfs_name, 0777, NULL, &myops);
+    if(Our_Proc_File == NULL) dev_info(priv->dev, "ERROR PROC. \n");
+	else
+		printk(KERN_ALERT "/proc/%s created\n", procfs_name);	
+
+
+
+
 	priv->debug.debugfs_phy = debugfs_create_dir(KBUILD_MODNAME,
 					     priv->hw->wiphy->debugfsdir);
 	if (!priv->debug.debugfs_phy)
 		return -ENOMEM;
+
+	// printk(KERN_ALERT "htc-debug dir: /%s \n",(priv->debug.debugfs_phy->d_name));
 
 	ath9k_cmn_spectral_init_debug(&priv->spec_priv, priv->debug.debugfs_phy);
 
