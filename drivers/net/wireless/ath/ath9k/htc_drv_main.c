@@ -1233,9 +1233,12 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		printk(KERN_ALERT "conf-change-power called. \n");
 		priv->txpowlimit = 2 * conf->power_level;
 		ath9k_cmn_update_txpow(priv->ah, priv->curtxpow,
 				       priv->txpowlimit, &priv->curtxpow);
+		printk(KERN_INFO "txpower changed by conf. limit= %d\n", priv->txpowlimit);
+		printk(KERN_INFO "new current txpower %d . \n", priv->curtxpow);
 	}
 
 out:

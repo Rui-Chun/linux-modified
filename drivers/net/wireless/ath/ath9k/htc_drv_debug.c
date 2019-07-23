@@ -521,7 +521,21 @@ procfile_write(struct file *file, const char __user *ubuf, size_t count, loff_t 
 
 
    vals[0] = ((int)info[0] - 48)*10 + ((int)info[1] - 48);
-   dbg_firmware_cmd(proc_ath9k_priv, DBG_CMD_SET_RATE, vals);
+   // dbg_firmware_cmd(proc_ath9k_priv, DBG_CMD_SET_RATE, vals);
+
+
+// 	mutex_lock(&proc_ath9k_priv->mutex);
+// 	ath9k_htc_ps_wakeup(proc_ath9k_priv);
+
+//    proc_ath9k_priv->txpowlimit = vals[0];
+//    printk(KERN_INFO "current txpower %d . \n", proc_ath9k_priv->curtxpow);
+//    ath9k_cmn_update_txpow(proc_ath9k_priv->ah, proc_ath9k_priv->curtxpow,
+// 					proc_ath9k_priv->txpowlimit, &proc_ath9k_priv->curtxpow);
+// 	printk(KERN_INFO "txpower changed. limit= %d\n", proc_ath9k_priv->txpowlimit);
+// 	printk(KERN_INFO "new current txpower %d . \n", proc_ath9k_priv->curtxpow);
+
+// 	ath9k_htc_ps_restore(proc_ath9k_priv);
+// 	mutex_unlock(&proc_ath9k_priv->mutex);
    
    c = strlen(info);
    *ppos = c;
