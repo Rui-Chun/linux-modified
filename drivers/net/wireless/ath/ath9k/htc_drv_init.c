@@ -255,31 +255,35 @@ static void fancy_printk(u8* buffer, u8 id, u8 len) {
 	printk(KERN_ERR "firmware: %s (cmd %d)\n", temp, id);
 }
 
-	int dbg_firmware_cmd(struct ath9k_htc_priv *priv, u8 cmd_id, u32 arguments[2])
+	int dbg_firmware_cmd(struct ath9k_htc_priv *priv, u8 cmd_id, u32 arguments[20])
 {
 	struct dbg_cmd_request cmd;
 	struct dbg_cmd_response cmd_rsp;
 	int ret;
+	int i;
 
  	// Prepare command
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.id = cmd_id;
 	if(arguments != NULL) {
-		cmd.args[0] = cpu_to_be32(arguments[0]);
-		cmd.args[1] = cpu_to_be32(arguments[1]);
+		if(arguments[0]){
+			for(i=0; i<20; i++){
+				cmd.args[i] = cpu_to_be32(arguments[i]);
+			}
+		}
+		else cmd.args[0] = arguments[0];
 	}
 
  	// Prepare response
 	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
 
- 	do {
-		ret = ath9k_wmi_cmd(priv->wmi, WMI_DBGCMD_CMDID, (u8 *)&cmd, sizeof(cmd), (u8 *)&cmd_rsp, sizeof(cmd_rsp), HZ*2);
-		if (ret)
-			return -EINVAL;
+	ret = ath9k_wmi_cmd(priv->wmi, WMI_DBGCMD_CMDID, (u8 *)&cmd, sizeof(cmd), (u8 *)&cmd_rsp, sizeof(cmd_rsp), HZ*2);
+	if (ret)
+		return -EINVAL;
 
- 		if(cmd_rsp.length > 0)
-			fancy_printk(cmd_rsp.buffer, cmd_id, cmd_rsp.length);
-	} while(cmd_rsp.length != 0);
+	if(cmd_rsp.length > 0)
+		// fancy_printk(cmd_rsp.buffer, cmd_id, cmd_rsp.length);
+		printk(KERN_INFO "firmware says: %s \n", cmd_rsp.buffer);
 
  	return 0;
 }

@@ -53,7 +53,7 @@ typedef enum {
 
  struct dbg_cmd_request {
 	u8 id;
-	__be32 args[2];
+	__be32 args[20];
 } __packed;
 
  struct dbg_cmd_response {

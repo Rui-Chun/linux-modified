@@ -20,7 +20,8 @@
 
 
 #define buffer_size 100
-#define procfs_name "ath9k-htc-rate"
+#define procfs_name_rate "ath9k-htc-rate"
+#define procfs_name_power "ath9k-htc-power"
 
 static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
@@ -485,75 +486,146 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
 }
 
-static struct proc_dir_entry *Our_Proc_File;
-static char info[50] = "";
+static struct proc_dir_entry *Our_Proc_File_rate, *Our_Proc_File_power;
+static char info_rate[50] = "";
+static char info_power[10] = "";
 struct ath9k_htc_priv *proc_ath9k_priv = NULL;
 
 
+// power section
 static int
-procfile_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
+procfile_read_power(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
 {
    char buf[buffer_size];
    int len = 0;
-   printk(KERN_INFO "reading profile %s",procfs_name);
+   printk(KERN_INFO "reading profile %s",procfs_name_power);
    
    if(*ppos > 0 || count < buffer_size) return 0;
    //printk(KERN_INFO "count = %d\n",count);
-   len += sprintf(buf, "kernel module says: %s\n", info);
+   len += sprintf(buf, "kernel module says: %s\n", info_power);
    
    if(copy_to_user(ubuf,buf,len)) return -EFAULT;
-   else printk(KERN_INFO "copy right\n");
-   
+
    *ppos = len;
    return len;
    
 }
 
 static int
-procfile_write(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos)
+procfile_write_power(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos)
 {
    u32 vals[2];   
    size_t c;
+   char *ptr;
   
-   printk(KERN_INFO "writig profile %s",procfs_name);
+   printk(KERN_INFO "writig profile %s",procfs_name_power);
    if(*ppos > 0 || count > buffer_size) return -EFAULT;
-   if(copy_from_user(info,ubuf,count)) return -EFAULT;
+
+   memset(info_power,0,sizeof(char)*50);
+   if(copy_from_user(info_power,ubuf,count)) return -EFAULT;
 
 
-   vals[0] = ((int)info[0] - 48)*10 + ((int)info[1] - 48);
+   vals[0] = 2 * strtol(info_power,&ptr,10);
    // dbg_firmware_cmd(proc_ath9k_priv, DBG_CMD_SET_RATE, vals);
 
 
-// 	mutex_lock(&proc_ath9k_priv->mutex);
-// 	ath9k_htc_ps_wakeup(proc_ath9k_priv);
+	mutex_lock(&proc_ath9k_priv->mutex);
+	ath9k_htc_ps_wakeup(proc_ath9k_priv);
 
-//    proc_ath9k_priv->txpowlimit = vals[0];
-//    printk(KERN_INFO "current txpower %d . \n", proc_ath9k_priv->curtxpow);
-//    ath9k_cmn_update_txpow(proc_ath9k_priv->ah, proc_ath9k_priv->curtxpow,
-// 					proc_ath9k_priv->txpowlimit, &proc_ath9k_priv->curtxpow);
-// 	printk(KERN_INFO "txpower changed. limit= %d\n", proc_ath9k_priv->txpowlimit);
-// 	printk(KERN_INFO "new current txpower %d . \n", proc_ath9k_priv->curtxpow);
+	proc_ath9k_priv->txpowlimit = vals[0];
+	printk(KERN_INFO "current txpower %d . \n", proc_ath9k_priv->curtxpow);
+	ath9k_cmn_update_txpow(proc_ath9k_priv->ah, proc_ath9k_priv->curtxpow,
+						proc_ath9k_priv->txpowlimit, &proc_ath9k_priv->curtxpow);
+	printk(KERN_INFO "txpower changed. limit= %d\n", proc_ath9k_priv->txpowlimit);
+	printk(KERN_INFO "new current txpower %d . \n", proc_ath9k_priv->curtxpow);
 
-// 	ath9k_htc_ps_restore(proc_ath9k_priv);
-// 	mutex_unlock(&proc_ath9k_priv->mutex);
+	ath9k_htc_ps_restore(proc_ath9k_priv);
+	mutex_unlock(&proc_ath9k_priv->mutex);
    
-   c = strlen(info);
+   c = strlen(info_power);
    *ppos = c;
    return c;
 }
 
-static struct file_operations myops = 
+static struct file_operations power_ops = 
 {
    .owner = THIS_MODULE,
-   .read = procfile_read,
-   .write = procfile_write,
+   .read = procfile_read_power,
+   .write = procfile_write_power,
+};
+
+// rate section
+static int
+procfile_read_rate(struct file *file, char __user *ubuf, size_t count, loff_t *ppos)
+{
+   char buf[buffer_size];
+   int len = 0;
+   printk(KERN_INFO "reading profile %s",procfs_name_rate);
+   
+   if(*ppos > 0 || count < buffer_size) return 0;
+   //printk(KERN_INFO "count = %d\n",count);
+   len += sprintf(buf, "kernel module says: %s\n", info_rate);
+   
+   if(copy_to_user(ubuf,buf,len)) return -EFAULT;
+   else printk(KERN_INFO "copy right\n");
+
+    dbg_firmware_cmd(proc_ath9k_priv, DBG_CMD_TEST, NULL);
+
+   *ppos = len;
+   return len;
+   
+}
+
+static int
+procfile_write_rate(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos)
+{
+   u32 vals[20];   
+   char *ptr, *ptr1;
+   int idx = 0;
+   size_t c;
+  
+   printk(KERN_INFO "writig profile %s",procfs_name_rate);
+   if(*ppos > 0 || count > buffer_size) return -EFAULT;
+
+   memset(info_rate,0,sizeof(char)*50);
+   if(copy_from_user(info_rate,ubuf,count)) return -EFAULT;
+
+   printk(KERN_INFO "write_rate received: \n");
+   vals[idx] = simple_strtol(info_rate, &ptr, 10);
+   printk(KERN_INFO "%d ", vals[idx]);
+   ptr++;
+   idx++;
+   while(idx < 15 && vals[0])
+   {
+		vals[idx] = simple_strtol(ptr, &ptr1, 10);
+		printk(KERN_INFO "%d ", vals[idx]);
+		ptr = ptr1 + 1;
+		idx++;
+    }
+
+   dbg_firmware_cmd(proc_ath9k_priv, DBG_CMD_SET_RATE, vals);
+
+   
+   c = strlen(info_rate);
+   *ppos = c;
+   return c;
+}
+
+static struct file_operations rate_ops = 
+{
+   .owner = THIS_MODULE,
+   .read = procfile_read_rate,
+   .write = procfile_write_rate,
 };
 
 
 void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
 {
-	proc_remove(Our_Proc_File);
-	printk(KERN_INFO "/proc/%s removed\n", procfs_name);
+	proc_remove(Our_Proc_File_rate);
+	printk(KERN_INFO "/proc/%s removed\n", procfs_name_rate);
+
+	proc_remove(Our_Proc_File_power);
+	printk(KERN_INFO "/proc/%s removed\n", procfs_name_power);
 
 	ath9k_cmn_spectral_deinit_debug(&priv->spec_priv);
 }
@@ -566,10 +638,16 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	proc_ath9k_priv = priv;
 
 	dev_info(priv->dev, "real ath9k_htc_init_debug called. \n");
-	Our_Proc_File = proc_create(procfs_name, 0777, NULL, &myops);
-    if(Our_Proc_File == NULL) dev_info(priv->dev, "ERROR PROC. \n");
+
+	Our_Proc_File_rate = proc_create(procfs_name_rate, 0777, NULL, &rate_ops);
+    if(Our_Proc_File_rate == NULL) printk(KERN_ALERT "ERROR PROCFS %s \n", procfs_name_rate);
 	else
-		printk(KERN_ALERT "/proc/%s created\n", procfs_name);	
+		printk(KERN_ALERT "/proc/%s created\n", procfs_name_rate);	
+
+	Our_Proc_File_power = proc_create(procfs_name_power, 0777, NULL, &power_ops);
+    if(Our_Proc_File_power == NULL) printk(KERN_ALERT "ERROR PROCFS %s \n", procfs_name_power);
+	else
+		printk(KERN_ALERT "/proc/%s created\n", procfs_name_power);	
 
 
 
